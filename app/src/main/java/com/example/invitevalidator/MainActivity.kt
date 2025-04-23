@@ -1,74 +1,76 @@
 package com.example.invitevalidator
 
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.budiyev.android.codescanner.AutoFocusMode
-import com.budiyev.android.codescanner.CodeScanner
-import com.budiyev.android.codescanner.CodeScannerView
-import com.budiyev.android.codescanner.DecodeCallback
-import com.budiyev.android.codescanner.ErrorCallback
-import com.budiyev.android.codescanner.ScanMode
-import android.graphics.BitmapFactory
-import android.util.Base64
-import android.widget.ImageView
+import com.budiyev.android.codescanner.*
 import okhttp3.*
-import java.io.IOException
 import org.json.JSONObject
-
+import java.io.IOException
 
 private const val CAMERA_REQUEST_CODE = 101
 
 class MainActivity : AppCompatActivity() {
     private lateinit var codeScanner: CodeScanner
 
+    // 🔊 Tones for feedback
+    private val toneGenScan = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+    private val toneGenAccept = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+    private val toneGenReject = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         setupPermissions()
-        codeScanner()
+        setupCodeScanner()
     }
 
-    private fun codeScanner(){
+    private fun setupCodeScanner() {
         val scannerView = findViewById<CodeScannerView>(R.id.scanner_view)
-
         codeScanner = CodeScanner(this, scannerView)
 
         codeScanner.apply {
             camera = CodeScanner.CAMERA_BACK
             formats = CodeScanner.ALL_FORMATS
-
-            autoFocusMode = AutoFocusMode.SAFE
+            autoFocusMode = AutoFocusMode.CONTINUOUS
             scanMode = ScanMode.SINGLE
             isAutoFocusEnabled = true
             isFlashEnabled = false
 
-            codeScanner.decodeCallback = DecodeCallback {result ->
+            decodeCallback = DecodeCallback { result ->
                 runOnUiThread {
-                    val scannedId = result.text
-                    fetchPassDetails(scannedId)
+                    toneGenScan.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+                    clearInfoFields()
+                    findViewById<TextView>(R.id.tv_message).text = "Processing..."
+                    fetchPassDetails(result.text)
                 }
             }
 
             errorCallback = ErrorCallback { exception ->
-                runOnUiThread{
+                runOnUiThread {
                     Log.e("Main", "Camera init error:", exception)
                 }
             }
         }
 
-        scannerView.setOnClickListener{
+        scannerView.setOnClickListener {
             codeScanner.startPreview()
         }
     }
 
-    override fun onResume(){
+    override fun onResume() {
         super.onResume()
         codeScanner.startPreview()
     }
@@ -80,27 +82,34 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupPermissions() {
         val permission = ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
-
-        if (permission != PackageManager.PERMISSION_GRANTED){
-            makeRequest()
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_REQUEST_CODE)
         }
     }
 
-    private fun makeRequest(){
-        ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_REQUEST_CODE)
+    private fun setResultBackground(colorHex: String) {
+        val container = findViewById<LinearLayout>(R.id.result_container)
+        container.setBackgroundColor(android.graphics.Color.parseColor(colorHex))
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray){
+    private fun clearInfoFields() {
+        findViewById<TextView>(R.id.tv_pass_id).text = "Pass ID: "
+        findViewById<TextView>(R.id.tv_name).text = "Name: "
+        findViewById<TextView>(R.id.tv_dob).text = "DOB: "
+        findViewById<TextView>(R.id.tv_gender).text = "Gender: "
+        findViewById<TextView>(R.id.tv_phone).text = "Phone: "
+        findViewById<TextView>(R.id.tv_college).text = "College: "
+        findViewById<TextView>(R.id.tv_semester).text = "Semester: "
+        findViewById<ImageView>(R.id.iv_photo).setImageResource(android.R.color.darker_gray)
+
+        setResultBackground("#FFFFFF")
+    }
+
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            CAMERA_REQUEST_CODE -> {
-                if (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED){
-                    Toast.makeText(this, "You need Camera Permissions to use this app!", Toast.LENGTH_SHORT).show()
-                }
-                else {
-                    // successful
-                }
-            }
+        if (requestCode == CAMERA_REQUEST_CODE && (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED)) {
+            Toast.makeText(this, "You need Camera Permissions to use this app!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -122,11 +131,18 @@ class MainActivity : AppCompatActivity() {
                     try {
                         val json = JSONObject(responseData!!)
                         if (json.has("error")) {
+                            toneGenReject.startTone(ToneGenerator.TONE_SUP_ERROR, 300)
+                            setResultBackground("#F4CCCC")
                             findViewById<TextView>(R.id.tv_message).text = "Invalid Pass"
                             return@runOnUiThread
                         }
 
                         val data = json.getJSONObject("pass_data")
+
+                        // ✅ Play accept tone
+                        toneGenAccept.startTone(ToneGenerator.TONE_PROP_ACK, 300)
+                        setResultBackground("#D9EAD3")
+
                         findViewById<TextView>(R.id.tv_message).text = json.getString("message")
                         findViewById<TextView>(R.id.tv_pass_id).text = "Pass ID: ${data.getString("pass_id")}"
                         findViewById<TextView>(R.id.tv_name).text = "Name: ${data.getString("name")}"
@@ -144,10 +160,10 @@ class MainActivity : AppCompatActivity() {
 
                     } catch (e: Exception) {
                         findViewById<TextView>(R.id.tv_message).text = "Error parsing data"
+                        Log.e("JSON_ERROR", "Error parsing response", e)
                     }
                 }
             }
         })
     }
-
 }
