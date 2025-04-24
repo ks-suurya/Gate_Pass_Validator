@@ -32,7 +32,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        supportActionBar?.setDisplayShowHomeEnabled(true)
+        supportActionBar?.setLogo(R.drawable.ic_logo)
+        supportActionBar?.setDisplayUseLogoEnabled(true)
+        supportActionBar?.title = " UV'25 Pass Validator"
         setupPermissions()
         setupCodeScanner()
     }
@@ -132,8 +135,8 @@ class MainActivity : AppCompatActivity() {
                         val json = JSONObject(responseData!!)
                         if (json.has("error")) {
                             toneGenReject.startTone(ToneGenerator.TONE_SUP_ERROR, 300)
-                            setResultBackground("#F4CCCC")
                             findViewById<TextView>(R.id.tv_message).text = "Invalid Pass"
+                            setResultBackground("#F4CCCC")
                             return@runOnUiThread
                         }
 
@@ -141,9 +144,9 @@ class MainActivity : AppCompatActivity() {
 
                         // ✅ Play accept tone
                         toneGenAccept.startTone(ToneGenerator.TONE_PROP_ACK, 300)
-                        setResultBackground("#D9EAD3")
 
                         findViewById<TextView>(R.id.tv_message).text = json.getString("message")
+                        setResultBackground("#D9EAD3")
                         findViewById<TextView>(R.id.tv_pass_id).text = "Pass ID: ${data.getString("pass_id")}"
                         findViewById<TextView>(R.id.tv_name).text = "Name: ${data.getString("name")}"
                         findViewById<TextView>(R.id.tv_dob).text = "DOB: ${data.getString("dob")}"
