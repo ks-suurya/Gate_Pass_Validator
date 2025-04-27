@@ -111,6 +111,7 @@
                     android:textSize="16sp"
                     android:textColor="@android:color/black"
                     android:layout_marginBottom="6dp"/>
+
             </LinearLayout>
 
             <ImageView
@@ -121,5 +122,17 @@
                 android:layout_marginLeft="8dp"
                 android:background="@android:color/darker_gray"/>
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/footer_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Designed &amp; Developed with ❤️ \nby UV'25 Technical Team"
+            android:textAlignment="center"
+            android:textSize="14sp"
+            android:textColor="@android:color/darker_gray"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="16dp" />
+
     </LinearLayout>
 </ScrollView>

@@ -133,40 +133,51 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     try {
                         val json = JSONObject(responseData!!)
+
+                        // ❌ Case 1: Explicit error field
                         if (json.has("error")) {
                             toneGenReject.startTone(ToneGenerator.TONE_SUP_ERROR, 300)
-                            findViewById<TextView>(R.id.tv_message).text = "Invalid Pass"
                             setResultBackground("#F4CCCC")
+                            findViewById<TextView>(R.id.tv_message).text = "Invalid Pass"
                             return@runOnUiThread
                         }
 
-                        val data = json.getJSONObject("pass_data")
+                        // ✅ Case 2: Valid response
+                        if (json.has("pass_data")) {
+                            val data = json.getJSONObject("pass_data")
+                            toneGenAccept.startTone(ToneGenerator.TONE_PROP_ACK, 300)
+                            setResultBackground("#D9EAD3")
 
-                        // ✅ Play accept tone
-                        toneGenAccept.startTone(ToneGenerator.TONE_PROP_ACK, 300)
+                            findViewById<TextView>(R.id.tv_message).text = json.getString("message")
+                            findViewById<TextView>(R.id.tv_pass_id).text = "Pass ID: ${data.getString("pass_id")}"
+                            findViewById<TextView>(R.id.tv_name).text = "Name: ${data.getString("name")}"
+                            findViewById<TextView>(R.id.tv_dob).text = "DOB: ${data.getString("dob")}"
+                            findViewById<TextView>(R.id.tv_gender).text = "Gender: ${data.getString("gender")}"
+                            findViewById<TextView>(R.id.tv_phone).text = "Phone: ${data.getString("phone")}"
+                            findViewById<TextView>(R.id.tv_college).text = "College: ${data.getString("collegeName")}"
+                            findViewById<TextView>(R.id.tv_semester).text = "Semester: ${data.getString("semester")}"
 
-                        findViewById<TextView>(R.id.tv_message).text = json.getString("message")
-                        setResultBackground("#D9EAD3")
-                        findViewById<TextView>(R.id.tv_pass_id).text = "Pass ID: ${data.getString("pass_id")}"
-                        findViewById<TextView>(R.id.tv_name).text = "Name: ${data.getString("name")}"
-                        findViewById<TextView>(R.id.tv_dob).text = "DOB: ${data.getString("dob")}"
-                        findViewById<TextView>(R.id.tv_gender).text = "Gender: ${data.getString("gender")}"
-                        findViewById<TextView>(R.id.tv_phone).text = "Phone: ${data.getString("phone")}"
-                        findViewById<TextView>(R.id.tv_college).text = "College: ${data.getString("collegeName")}"
-                        findViewById<TextView>(R.id.tv_semester).text = "Semester: ${data.getString("semester")}"
+                            // Show image
+                            val base64Image = data.getString("user_picture").substringAfter(",")
+                            val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
+                            val bmp = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                            findViewById<ImageView>(R.id.iv_photo).setImageBitmap(bmp)
 
-                        // Decode and show base64 image
-                        val base64Image = data.getString("user_picture").substringAfter(",")
-                        val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
-                        val bmp = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                        findViewById<ImageView>(R.id.iv_photo).setImageBitmap(bmp)
+                            return@runOnUiThread
+                        }
+
+                        // ⚠️ Case 3: Unknown response structure
+                        setResultBackground("#FFF3CD") // optional warning-yellow
+                        findViewById<TextView>(R.id.tv_message).text = "Internal Error - Contact Technical Team"
+                        toneGenReject.startTone(ToneGenerator.TONE_SUP_ERROR, 300)
 
                     } catch (e: Exception) {
-                        findViewById<TextView>(R.id.tv_message).text = "Error parsing data"
+                        findViewById<TextView>(R.id.tv_message).text = "Internal Error - Contact Technical Team (Parse Error)"
                         Log.e("JSON_ERROR", "Error parsing response", e)
                     }
                 }
             }
+
         })
     }
 }
